@@ -10,6 +10,10 @@ Shoper was used as the core e-commerce platform. It handled the product database
 
 This setup was convenient for running one store, but created limitations for international expansion. The same platform instance supported multiple domains, languages and currencies, while the default tracking environment was not designed for clean market separation.
 
+Product feeds were generated from the Shoper ecosystem and external feed applications.
+
+The feed separation was mostly based on Shoper-side multi-language and market configuration. Cloudflare was used as an additional delivery and control layer for exposing selected feed endpoints in a cleaner way.
+
 Main challenges:
 
 - Polish and German traffic could be mixed in one analytics setup.
@@ -44,7 +48,7 @@ H --> K
 K --> L[Meta CAPI PL]
 K --> M[Meta CAPI DE]
 
-B --> N[Feed Proxy]
+B --> N[Feed Endpoint Proxy]
 N --> O[Meta Catalog]
 ```
 
@@ -52,7 +56,7 @@ N --> O[Meta Catalog]
 
 The solution used several layers outside the Shoper backend:
 
-- Cloudflare Workers for edge-level control, HTML rewriting, feed proxying and tracking cleanup.
+- Cloudflare Workers for edge-level control, HTML rewriting, tracking cleanup and controlled feed delivery.
 - Web GTM containers for browser-side ecommerce tracking, Meta Pixel events and event ID generation.
 - Server-side GTM for routing GA4 events to server-side destinations.
 - Meta CAPI for server-side conversion tracking.
@@ -82,8 +86,10 @@ Main responsibilities:
 - injecting controlled GTM and consent scripts,
 - removing or blocking unwanted legacy tracking snippets,
 - filtering incorrect GA4 requests,
-- proxying Meta product feeds,
+- exposing cleaner feed endpoints,
 - supporting market-specific routing and tracking governance.
+
+Product feed separation itself was mainly based on Shoper-side multi-language and market configuration. Cloudflare was used to proxy and expose selected feed endpoints, not to rebuild the full product feed logic from scratch.
 
 ### 3. Web GTM Layer
 
@@ -101,22 +107,23 @@ Main responsibilities:
 
 ### 4. Server-side GTM Layer
 
-Server-side GTM received GA4 events and routed them to server-side destinations.
+Server-side GTM worked as a routing and validation layer between Web GTM and server-side destinations.
 
 Main responsibilities:
 
-- reading ecommerce event data,
-- forwarding events to Meta CAPI,
-- separating PL and DE server-side tracking,
-- blocking unwanted events,
-- preserving event IDs for Meta deduplication,
-- keeping advertising signals cleaner between markets.
+- receiving GA4 events from Web GTM,
+- reading `event_id` from incoming event data,
+- preserving `event_id` for Meta CAPI deduplication,
+- separating PL and DE tracking flows,
+- routing events to the correct GA4 and Meta CAPI setup,
+- blocking unwanted or low-value events,
+- preventing CAPI forwarding without a valid deduplication ID.
 
 ### 5. Google Cloud Run
 
 Google Cloud Run was used as the runtime environment for the server-side GTM container.
 
-The main role of Google Cloud Run was to host the server-side GTM container and expose custom tagging domains for server-side tracking.
+Its role was to host the server container and expose custom tagging endpoints for server-side tracking.
 
 ```text
 Browser
@@ -149,11 +156,38 @@ F --> G
 
 This allowed Meta to match browser-side Pixel events with server-side CAPI events and avoid duplicate conversion reporting.
 
+## Repository Structure
+
+```text
+shoper-multi-market-tracking-architecture
+├── README.md
+├── diagrams
+│   ├── architecture.mmd
+│   └── meta-capi-deduplication.mmd
+├── docs
+│   ├── cloudflare-layer.md
+│   ├── sgtm-layer.md
+│   ├── shoper-limitations.md
+│   └── web-gtm-layer.md
+└── examples
+    ├── event-id-generation.js
+    └── tracking-flow-example.json
+```
+
+## Included Examples
+
+This repository includes simplified examples and documentation for:
+
+- Web GTM ecommerce event flow
+- Meta event ID generation
+- Server-side GTM routing logic
+- Meta CAPI deduplication flow
+- Cloudflare edge tracking layer
+- Shoper tracking limitations
+
 ## Related Repositories
 
-- `cloudflare-ecommerce-tracking-infrastructure` — Cloudflare Worker examples for tracking control, feed proxying and HTML rewriting.
-- `web-gtm-ecommerce-tracking` — Web GTM ecommerce tracking examples.
-- `sgtm-meta-capi-routing` — Server-side GTM routing and Meta CAPI examples.
+- `cloudflare-ecommerce-tracking-infrastructure` — Cloudflare Worker examples for tracking control, feed endpoint proxying and HTML rewriting.
 - `ecommerce-json-to-html-data-converter` — Product data conversion script for ecommerce catalog migration.
 
 ## Technologies
