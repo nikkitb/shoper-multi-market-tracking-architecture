@@ -207,5 +207,5 @@ This repository includes simplified examples and documentation for:
 ## Disclaimer
 
 This repository contains a generalized and sanitized architecture description.
-
 Production identifiers, domains, access tokens, tracking IDs, business data and client-specific configurations have been removed or replaced with placeholders.
+This case study describes platform constraints and tracking architecture decisions in a multi-market e-commerce setup. It does not describe a security vulnerability, exploit, unauthorized access method or confidential platform issue.
