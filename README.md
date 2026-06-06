@@ -2,17 +2,17 @@
 
 Technical case study based on a real e-commerce tracking infrastructure project for a Shoper-based store.
 
-The goal was to separate analytics, advertising signals, consent management, product feeds and server-side tracking between different markets while keeping one monolithic Shoper store as the main e-commerce platform.
+The goal was to separate analytics, advertising signals, consent management, product feed delivery and server-side tracking between different markets while keeping one monolithic Shoper store as the main e-commerce platform.
 
 ## Project Context
 
 Shoper was used as the core e-commerce platform. It handled the product database, admin panel, storefront and backend infrastructure.
 
-This setup was convenient for running one store, but created limitations for international expansion. The same platform instance supported multiple domains, languages and currencies, while the default tracking environment was not designed for clean market separation.
+This setup was convenient for running one store, but created limitations for international expansion. The same platform instance supported multiple domains, languages and currencies, while the default tracking environment required additional customization for clean market separation.
 
-Product feeds were generated from the Shoper ecosystem and external feed applications.
+Product feeds were generated on the Shoper side using product data managed inside the store and external feed applications.
 
-The feed separation was mostly based on Shoper-side multi-language and market configuration. Cloudflare was used as an additional delivery and control layer for exposing selected feed endpoints in a cleaner way.
+The catalog itself remained based on Shoper product data, while feed separation was handled through Shoper-side multi-language and market configuration. Cloudflare was used as an additional delivery and control layer for exposing selected feed endpoints and keeping feed delivery aligned with the tracking architecture.
 
 Main challenges:
 
@@ -28,35 +28,48 @@ Main challenges:
 ```mermaid
 flowchart LR
 
-A[Shoper Monolith] --> B[Cloudflare Workers]
+A[Shoper Monolith] --> B[Cloudflare Edge Layer]
 
-B --> C[PL Market]
-B --> D[DE Market]
+B --> C[PL Worker]
+B --> D[DE Worker]
 
-C --> E[Web GTM PL]
-D --> F[Web GTM DE]
+C --> E[PL Consent Setup]
+D --> F[DE Consent Setup]
 
-E --> G[GA4 PL]
-F --> H[GA4 DE]
+C --> G[Web GTM PL Injection]
+D --> H[Web GTM DE Injection]
 
-E --> I[Meta Pixel PL]
-F --> J[Meta Pixel DE]
+C --> I[PL Feed Endpoint]
+D --> J[DE Feed Endpoint]
 
-G --> K[Server GTM]
-H --> K
+G --> K[Web GTM PL]
+H --> L[Web GTM DE]
 
-K --> L[Meta CAPI PL]
-K --> M[Meta CAPI DE]
+K --> M[GA4 PL]
+L --> N[GA4 DE]
 
-B --> N[Feed Endpoint Proxy]
-N --> O[Meta Catalog]
+K --> O[Meta Pixel PL]
+L --> P[Meta Pixel DE]
+
+M --> Q[Server GTM]
+N --> Q
+
+Q --> R[Meta CAPI PL]
+Q --> S[Meta CAPI DE]
+
+I --> T[Meta Catalog PL]
+J --> U[Meta Catalog DE]
 ```
 
 ## Solution Overview
 
-The solution used several layers outside the Shoper backend:
+The solution used several layers outside the Shoper backend.
 
-- Cloudflare Workers for edge-level control, HTML rewriting, tracking cleanup and controlled feed delivery.
+The first separation layer was implemented at the Cloudflare edge. Different Cloudflare Worker logic was used for different domains and markets. This allowed the setup to inject market-specific consent and GTM configuration, expose selected feed endpoints and control tracking behavior before traffic reached the storefront or analytics tools.
+
+Main solution layers:
+
+- Cloudflare Workers for domain-level separation, HTML rewriting, consent injection, GTM injection, tracking cleanup and controlled feed delivery.
 - Web GTM containers for browser-side ecommerce tracking, Meta Pixel events and event ID generation.
 - Server-side GTM for routing GA4 events to server-side destinations.
 - Meta CAPI for server-side conversion tracking.
@@ -77,23 +90,27 @@ Shoper worked as the monolithic e-commerce layer:
 
 The platform provided the store foundation, but additional tracking infrastructure was needed to separate markets properly.
 
-### 2. Cloudflare Layer
+### 2. Cloudflare Edge Layer
 
-Cloudflare was used as an edge layer in front of the storefront.
+Cloudflare was used as the first separation layer in front of the storefront.
+
+Instead of relying only on the platform's built-in tracking setup, Cloudflare Workers controlled how each market received its tracking and consent configuration.
 
 Main responsibilities:
 
-- injecting controlled GTM and consent scripts,
+- separating PL and DE domains at the edge,
+- injecting market-specific GTM containers,
+- injecting market-specific consent and Cookiebot setup,
 - removing or blocking unwanted legacy tracking snippets,
 - filtering incorrect GA4 requests,
-- exposing cleaner feed endpoints,
-- supporting market-specific routing and tracking governance.
+- exposing selected market-specific feed endpoints,
+- supporting tracking governance before requests reached analytics tools.
 
-Product feed separation itself was mainly based on Shoper-side multi-language and market configuration. Cloudflare was used to proxy and expose selected feed endpoints, not to rebuild the full product feed logic from scratch.
+Product feed generation itself stayed on the Shoper side. Feed applications used product data managed inside Shoper and generated market-specific XML feeds. Cloudflare was used to proxy or expose selected feed endpoints, not to create the catalog or rebuild feed logic from scratch.
 
 ### 3. Web GTM Layer
 
-Web GTM handled browser-side tracking logic.
+Web GTM handled browser-side tracking logic after the correct market-specific setup was injected by Cloudflare.
 
 Main responsibilities:
 
@@ -127,7 +144,8 @@ Its role was to host the server container and expose custom tagging endpoints fo
 
 ```text
 Browser
-→ Web GTM
+→ Cloudflare Worker
+→ Market-specific Web GTM
 → GA4 request with event_id
 → Custom CAPI domain
 → Google Cloud Run
@@ -142,7 +160,7 @@ The browser and server-side events used the same event identifier.
 ```mermaid
 flowchart LR
 
-A[User Action] --> B[Event ID]
+A[User Action] --> B[Web GTM Event ID]
 
 B --> C[Meta Pixel eventID]
 B --> D[GA4 event_id]
@@ -178,11 +196,11 @@ shoper-multi-market-tracking-architecture
 
 This repository includes simplified examples and documentation for:
 
+- Cloudflare-based market separation
 - Web GTM ecommerce event flow
 - Meta event ID generation
 - Server-side GTM routing logic
 - Meta CAPI deduplication flow
-- Cloudflare edge tracking layer
 - Shoper tracking limitations
 
 ## Related Repositories
@@ -207,5 +225,7 @@ This repository includes simplified examples and documentation for:
 ## Disclaimer
 
 This repository contains a generalized and sanitized architecture description.
+
 Production identifiers, domains, access tokens, tracking IDs, business data and client-specific configurations have been removed or replaced with placeholders.
+
 This case study describes platform constraints and tracking architecture decisions in a multi-market e-commerce setup. It does not describe a security vulnerability, exploit, unauthorized access method or confidential platform issue.
