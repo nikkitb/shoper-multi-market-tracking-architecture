@@ -1,0 +1,20 @@
+{
+  "event": "add_to_cart",
+  "event_id": "evt_example_123",
+  "market": "DE",
+  "currency": "EUR",
+  "items": [
+    {
+      "item_id": "SKU123",
+      "item_name": "Example Product",
+      "price": 59.99,
+      "quantity": 1
+    }
+  ],
+  "flow": {
+    "browser": "Meta Pixel eventID",
+    "analytics": "GA4 event_id",
+    "server": "sGTM reads event_id",
+    "destination": "Meta CAPI event_id"
+  }
+}
