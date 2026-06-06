@@ -1,0 +1,12 @@
+flowchart LR
+
+A[User Action] --> B[Event ID]
+
+B --> C[Meta Pixel eventID]
+B --> D[GA4 event_id]
+
+D --> E[Server GTM]
+E --> F[Meta CAPI event_id]
+
+C --> G[Meta Deduplication]
+F --> G

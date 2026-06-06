@@ -1,0 +1,25 @@
+
+flowchart LR
+
+A[Shoper Monolith] --> B[Cloudflare Workers]
+
+B --> C[PL Market]
+B --> D[DE Market]
+
+C --> E[Web GTM PL]
+D --> F[Web GTM DE]
+
+E --> G[GA4 PL]
+F --> H[GA4 DE]
+
+E --> I[Meta Pixel PL]
+F --> J[Meta Pixel DE]
+
+G --> K[Server GTM]
+H --> K
+
+K --> L[Meta CAPI PL]
+K --> M[Meta CAPI DE]
+
+B --> N[Feed Proxy]
+N --> O[Meta Catalog]
